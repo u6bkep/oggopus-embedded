@@ -213,6 +213,18 @@ fn main() {
         builder = builder
             .allowlist_function("opus_decoder_create")
             .allowlist_function("opus_decoder_destroy");
+    } else {
+        // A bare-metal target has no hosted C library, so parse the headers
+        // freestanding. In hosted mode clang's own <stdint.h> defers to the
+        // next <stdint.h> on the include path, and bindgen appends the system
+        // include dirs of whichever `clang` binary it finds. When that binary
+        // is a different version from the libclang bindgen loaded (Ubuntu
+        // 26.04: `clang` is 21, the newest libclang is 22), the "next" header
+        // is the other version's builtin copy: its include guard is already
+        // set, so no intN_t is ever defined and opus_types.h fails with
+        // "unknown type name 'int8_t'". Freestanding, clang defines the types
+        // itself and never looks further.
+        builder = builder.clang_arg("-ffreestanding");
     }
     // Note: the `stereo` feature no longer affects bindgen output. It selects
     // the reserved `OpusDecoder` size on the Rust side (see lib.rs); the C
